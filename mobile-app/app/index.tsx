@@ -11,7 +11,7 @@ import { Feather, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-const API_URL = 'https://shaggy-parents-eat.loca.lt/api';
+const API_URL = 'https://ayush-solar-backend.onrender.com/api';
 axios.defaults.headers.common['bypass-tunnel-reminder'] = 'true';
 
 // ─── SOLAR SITES TAB ──────────────────────────────────────────────────────────

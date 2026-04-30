@@ -1,0 +1,26 @@
+services:
+  # Backend API (Node.js)
+  - type: web
+    name: ayush-solar-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: MONGO_URI
+        sync: false # Set your MongoDB Atlas URI in Render Dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 10000
+
+  # Admin Dashboard (React)
+  - type: static
+    name: ayush-solar-admin
+    env: static
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    publishPath: ./frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://ayush-solar-backend.onrender.com/api
