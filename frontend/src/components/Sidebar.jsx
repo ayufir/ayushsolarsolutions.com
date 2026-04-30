@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { NavLink } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { MapIcon, Users, HistoryIcon, LogOut } from 'lucide-react';
+import { MapIcon, Users, HistoryIcon, LogOut, ClipboardList } from 'lucide-react';
 
 const Sidebar = () => {
   const { logout } = useContext(AuthContext);
@@ -32,6 +32,13 @@ const Sidebar = () => {
         >
           <HistoryIcon size={20} />
           <span>Location History</span>
+        </NavLink>
+        <NavLink 
+          to="/admin/tasks" 
+          className={({isActive}) => `flex items-center space-x-3 p-3 rounded-lg ${isActive ? 'bg-gray-800 text-yellow-400' : 'hover:bg-gray-800'}`}
+        >
+          <ClipboardList size={20} />
+          <span>Task Manager</span>
         </NavLink>
       </nav>
       <div className="p-4 border-t border-gray-800">

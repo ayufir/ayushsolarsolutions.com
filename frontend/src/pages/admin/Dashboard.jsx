@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 import Sidebar from '../../components/Sidebar';
 import api from '../../utils/api';
 import { AuthContext } from '../../context/AuthContext';
-import { Battery, UserIcon, Clock } from 'lucide-react';
+import { Battery, UserIcon, Clock, ClipboardPlus, X } from 'lucide-react';
 
 // Employee Icon
 const employeeIcon = new L.DivIcon({
@@ -67,6 +67,9 @@ const Dashboard = () => {
   const [focusedLocation, setFocusedLocation] = useState(null);
   const [adminLocation, setAdminLocation] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [assigningTask, setAssigningTask] = useState(null); // stores the solar object being serviced
+  const [taskForm, setTaskForm] = useState({ employeeId: '', description: '' });
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
@@ -95,8 +98,17 @@ const Dashboard = () => {
         console.error('Error fetching solars', err);
       }
     };
+    const fetchEmployees = async () => {
+      try {
+        const { data } = await api.get('/employees');
+        setEmployees(data);
+      } catch (err) {
+        console.error('Error fetching employees', err);
+      }
+    };
     fetchLocations();
     fetchSolars();
+    fetchEmployees();
 
     // Setup Socket.IO
     const newSocket = io('http://localhost:5000');
@@ -131,6 +143,23 @@ const Dashboard = () => {
       } catch (err) {
         alert("Error adding solar panel: " + (err.response?.data?.message || err.message));
       }
+    }
+  };
+
+  const handleAssignTask = async (e) => {
+    e.preventDefault();
+    if (!taskForm.employeeId) return alert('Please select an employee');
+    try {
+      await api.post('/tasks/assign', {
+        employeeId: taskForm.employeeId,
+        title: `Service: ${assigningTask.name}`,
+        description: taskForm.description || `Required service at ${assigningTask.name} site.`
+      });
+      alert('Task assigned successfully!');
+      setAssigningTask(null);
+      setTaskForm({ employeeId: '', description: '' });
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -211,8 +240,15 @@ const Dashboard = () => {
                   <Popup>
                     <div className="p-2">
                       <h3 className="font-bold text-yellow-600">{solar.name}</h3>
-                      <p className="text-sm text-gray-500">Solar Asset Installed</p>
-                      <p className="text-xs text-gray-400 mt-1">Added: {new Date(solar.createdAt).toLocaleDateString()}</p>
+                      <p className="text-sm text-gray-500 mb-2">Solar Asset Installed</p>
+                      <button 
+                        onClick={() => setAssigningTask(solar)}
+                        className="w-full flex items-center justify-center space-x-1 bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1.5 rounded text-xs font-bold"
+                      >
+                        <ClipboardPlus size={14} />
+                        <span>Assign Service</span>
+                      </button>
+                      <p className="text-[10px] text-gray-400 mt-2">Added: {new Date(solar.createdAt).toLocaleDateString()}</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -251,6 +287,49 @@ const Dashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Task Assignment Modal */}
+      {assigningTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[2000] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-gray-100">
+            <div className="bg-yellow-500 p-4 flex justify-between items-center text-white">
+              <h3 className="font-bold text-lg flex items-center">
+                <ClipboardPlus className="mr-2" /> Assign Service Task
+              </h3>
+              <button onClick={() => setAssigningTask(null)}><X size={24} /></button>
+            </div>
+            <form onSubmit={handleAssignTask} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Target Site</label>
+                <div className="p-3 bg-gray-50 rounded-lg text-gray-800 font-medium border border-gray-200">☀️ {assigningTask.name}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Assign To Employee</label>
+                <select 
+                  required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+                  value={taskForm.employeeId} onChange={e => setTaskForm({...taskForm, employeeId: e.target.value})}
+                >
+                  <option value="">Select Employee</option>
+                  {employees.map(emp => (
+                    <option key={emp._id} value={emp._id}>{emp.name} ({emp.employeeId})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Special Instructions (Optional)</label>
+                <textarea 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+                  rows="3" placeholder="Ex: Clean panels or check wiring..."
+                  value={taskForm.description} onChange={e => setTaskForm({...taskForm, description: e.target.value})}
+                ></textarea>
+              </div>
+              <button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95">
+                SEND TASK TO EMPLOYEE
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

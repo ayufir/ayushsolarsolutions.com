@@ -6,6 +6,7 @@ import AdminLogin from './pages/admin/Login';
 import Dashboard from './pages/admin/Dashboard';
 import Employees from './pages/admin/Employees';
 import History from './pages/admin/History';
+import Tasks from './pages/admin/Tasks';
 
 import EmployeeLogin from './pages/employee/Login';
 import Tracking from './pages/employee/Tracking';
@@ -26,6 +27,7 @@ function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="employees" element={<Employees />} />
               <Route path="history" element={<History />} />
+              <Route path="tasks" element={<Tasks />} />
             </Routes>
           </ProtectedRoute>
         } />

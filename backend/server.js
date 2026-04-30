@@ -19,18 +19,22 @@ const io = socketIo(server, {
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Routes
 const authRoutes = require('./routes/auth');
 const employeeRoutes = require('./routes/employee');
 const locationRoutes = require('./routes/location');
 const solarRoutes = require('./routes/solar');
+const taskRoutes = require('./routes/task');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/solars', solarRoutes);
+app.use('/api/tasks', taskRoutes);
+app.get('/api/test-tasks', (req, res) => res.send('Tasks API is alive'));
 
 // Socket.io for Real-time location updates
 io.on('connection', (socket) => {

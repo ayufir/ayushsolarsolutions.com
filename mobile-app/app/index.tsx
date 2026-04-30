@@ -7,11 +7,12 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { Feather, FontAwesome5, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
+import * as ImagePicker from 'expo-image-picker';
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-const API_URL = 'https://ayush-solar-backend.onrender.com/api';
+const API_URL = 'http://192.168.1.12:5000/api';
 axios.defaults.headers.common['bypass-tunnel-reminder'] = 'true';
 
 // ─── SOLAR SITES TAB ──────────────────────────────────────────────────────────
@@ -436,13 +437,156 @@ const db = StyleSheet.create({
   infoText: { color: '#94a3b8', lineHeight: 20, fontSize: 13 },
 });
 
+// ─── TASKS TAB ──────────────────────────────────────────────────────────────
+function TaskTab({ token, currentLoc }: { token: string; currentLoc: any }) {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  const fetchTasks = async () => {
+    if (!token) return;
+    try {
+      setRefreshing(true);
+      const res = await axios.get(`${API_URL}/tasks/my`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTasks(res.data);
+      
+      // Get user name from token (optional decode or just stored in storage)
+      const userData = await AsyncStorage.getItem('user');
+      if (userData) setUserName(JSON.parse(userData).name);
+    } catch (err: any) {
+      console.log('Fetch tasks error:', err.response?.status, err.message);
+      if (err.response?.status === 401) {
+        Alert.alert('Session Expired', 'Please login again');
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { fetchTasks(); }, [token]);
+
+  const handlePickImage = async (taskId: string) => {
+    // Request permissions
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'We need camera access to submit proof.');
+      return;
+    }
+
+    // Launch camera
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets && result.assets[0].base64) {
+      submitProof(taskId, `data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
+
+  const submitProof = async (taskId: string, base64Image: string) => {
+    try {
+      setRefreshing(true);
+      const locData = currentLoc ? {
+        latitude: currentLoc.latitude,
+        longitude: currentLoc.longitude
+      } : { latitude: 0, longitude: 0 };
+
+      await axios.post(`${API_URL}/tasks/submit`, {
+        taskId,
+        proofImage: base64Image,
+        location: locData
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      
+      Alert.alert('Success', 'Task proof submitted! Waiting for Admin approval.');
+      fetchTasks();
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to submit proof');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return '#10b981';
+      case 'rejected': return '#ef4444';
+      case 'completed': return '#f59e0b';
+      default: return '#64748b';
+    }
+  };
+
+  return (
+    <ScrollView 
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      style={{ flex: 1, backgroundColor: '#0f172a' }}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <View>
+          <Text style={{ color: '#f8fafc', fontSize: 24, fontWeight: '900' }}>Your Tasks</Text>
+          <Text style={{ color: '#f59e0b', fontSize: 12, fontWeight: '600' }}>Logged as: {userName || '...'}</Text>
+        </View>
+        <TouchableOpacity onPress={fetchTasks} disabled={refreshing}>
+          <Feather name="refresh-cw" size={20} color={refreshing ? "#1e293b" : "#f59e0b"} />
+        </TouchableOpacity>
+      </View>
+
+      {tasks.length === 0 ? (
+        <View style={{ alignItems: 'center', marginTop: 60 }}>
+          <Ionicons name="clipboard-outline" size={64} color="#1e293b" />
+          <Text style={{ color: '#64748b', marginTop: 16 }}>No tasks assigned to you</Text>
+        </View>
+      ) : (
+        tasks.map((task) => (
+          <View key={task._id} style={db.card}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={{ color: '#f8fafc', fontSize: 18, fontWeight: '700' }}>{task.title}</Text>
+              <View style={{ 
+                backgroundColor: `${getStatusColor(task.status)}20`, 
+                paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: getStatusColor(task.status)
+              }}>
+                <Text style={{ color: getStatusColor(task.status), fontSize: 10, fontWeight: '900', textTransform: 'uppercase' }}>
+                  {task.status}
+                </Text>
+              </View>
+            </View>
+            
+            <Text style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>{task.description}</Text>
+
+            {task.status === 'pending' || task.status === 'rejected' ? (
+              <TouchableOpacity 
+                style={[s.loginBtn, { marginTop: 0, height: 48 }]} 
+                onPress={() => handlePickImage(task._id)}
+              >
+                <Feather name="camera" size={18} color="#0f172a" style={{ marginRight: 8 }} />
+                <Text style={s.loginBtnText}>SUBMIT PROOF</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', padding: 10, borderRadius: 8 }}>
+                <Feather name="check-circle" size={16} color="#10b981" />
+                <Text style={{ color: '#10b981', marginLeft: 8, fontSize: 12, fontWeight: '600' }}>
+                  Proof submitted on {new Date(task.submittedAt).toLocaleDateString()}
+                </Text>
+              </View>
+            )}
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function Index() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'map' | 'dashboard' | 'solars'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'dashboard' | 'solars' | 'tasks'>('map');
   const [currentLoc, setCurrentLoc] = useState<any>(null);
 
   // Check for stored session
@@ -553,7 +697,7 @@ export default function Index() {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={s.topDot} />
           <Text style={s.topTitle}>
-            {activeTab === 'map' ? 'Solar Infrastructure Map' : activeTab === 'solars' ? 'Solar Panel Sites' : 'Operative Dashboard'}
+            {activeTab === 'map' ? 'Solar Infrastructure Map' : activeTab === 'solars' ? 'Solar Panel Sites' : activeTab === 'tasks' ? 'Assigned Tasks' : 'Operative Dashboard'}
           </Text>
         </View>
         <Feather name="shield" size={18} color="#10b981" />
@@ -565,6 +709,8 @@ export default function Index() {
           ? <MapTab token={token} />
           : activeTab === 'solars'
           ? <SolarTab token={token} />
+          : activeTab === 'tasks'
+          ? <TaskTab token={token} currentLoc={currentLoc} />
           : <DashboardTab currentLoc={currentLoc} />
         }
       </View>
@@ -582,6 +728,12 @@ export default function Index() {
             <FontAwesome5 name="solar-panel" size={20} color={activeTab === 'solars' ? '#f59e0b' : '#64748b'} />
           </View>
           <Text style={[s.tabLabel, activeTab === 'solars' && s.tabLabelActive]}>Solar Sites</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.tabItem} onPress={() => setActiveTab('tasks')}>
+          <View style={[s.tabIconWrap, activeTab === 'tasks' && s.tabIconActive]}>
+            <Feather name="check-square" size={22} color={activeTab === 'tasks' ? '#f59e0b' : '#64748b'} />
+          </View>
+          <Text style={[s.tabLabel, activeTab === 'tasks' && s.tabLabelActive]}>Tasks</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.tabItem} onPress={() => setActiveTab('dashboard')}>
           <View style={[s.tabIconWrap, activeTab === 'dashboard' && s.tabIconActive]}>

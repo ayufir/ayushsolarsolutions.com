@@ -9,6 +9,7 @@ api.interceptors.request.use((config) => {
   if (user && user.token) {
     config.headers.Authorization = `Bearer ${user.token}`;
   }
+  config.headers['bypass-tunnel-reminder'] = 'true';
   return config;
 });
 
