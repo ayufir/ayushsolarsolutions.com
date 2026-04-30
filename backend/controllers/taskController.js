@@ -3,11 +3,12 @@ const Task = require('../models/Task');
 // Admin: Assign a task
 exports.assignTask = async (req, res) => {
   try {
-    const { employeeId, title, description } = req.body;
+    const { employeeId, title, description, taskLocation } = req.body;
     const task = await Task.create({
       employee: employeeId,
       title,
-      description
+      description,
+      taskLocation
     });
     res.status(201).json(task);
   } catch (err) {
