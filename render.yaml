@@ -15,9 +15,8 @@ services:
         value: 10000
 
   # Admin Dashboard (React)
-  - type: static
+  - type: static_site
     name: ayush-solar-admin
-    env: static
     plan: free
     buildCommand: cd frontend && npm install && npm run build
     publishPath: ./frontend/dist
