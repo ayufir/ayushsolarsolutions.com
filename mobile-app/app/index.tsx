@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, Animated, Platform, ScrollView
+  Alert, ActivityIndicator, Animated, Platform, ScrollView, Linking
 } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -555,7 +555,23 @@ function TaskTab({ token, currentLoc }: { token: string; currentLoc: any }) {
               </View>
             </View>
             
-            <Text style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>{task.description}</Text>
+            <Text style={{ color: '#94a3b8', fontSize: 14, marginBottom: 12 }}>{task.description}</Text>
+
+            {task.taskLocation && (
+              <TouchableOpacity 
+                onPress={() => {
+                  const url = `https://www.google.com/maps/dir/?api=1&destination=${task.taskLocation.latitude},${task.taskLocation.longitude}`;
+                  Linking.openURL(url);
+                }}
+                style={{ 
+                  flexDirection: 'row', alignItems: 'center', backgroundColor: '#334155', 
+                  padding: 8, borderRadius: 6, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#f59e0b' 
+                }}
+              >
+                <Feather name="map" size={16} color="#f59e0b" />
+                <Text style={{ color: '#f8fafc', marginLeft: 8, fontSize: 13, fontWeight: '700' }}>GET DIRECTIONS (NAVIGATE)</Text>
+              </TouchableOpacity>
+            )}
 
             {task.status === 'pending' || task.status === 'rejected' ? (
               <View>

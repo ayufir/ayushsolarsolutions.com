@@ -153,7 +153,11 @@ const Dashboard = () => {
       await api.post('/tasks/assign', {
         employeeId: taskForm.employeeId,
         title: `Service: ${assigningTask.name}`,
-        description: taskForm.description || `Required service at ${assigningTask.name} site.`
+        description: taskForm.description || `Required service at ${assigningTask.name} site.`,
+        taskLocation: {
+          latitude: assigningTask.latitude,
+          longitude: assigningTask.longitude
+        }
       });
       alert('Task assigned successfully!');
       setAssigningTask(null);
