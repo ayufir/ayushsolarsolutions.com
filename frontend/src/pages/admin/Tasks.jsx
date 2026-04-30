@@ -165,11 +165,16 @@ const Tasks = () => {
                 <h3 className="text-xl font-bold">Completion Proof</h3>
                 <button onClick={() => setViewProof(null)}><X size={24} /></button>
               </div>
-              <img 
-                src={viewProof.proofImage} 
-                alt="Proof" 
-                className="w-full h-80 object-cover rounded-xl border-4 border-gray-100 shadow-inner mb-4"
-              />
+              <div className="grid grid-cols-2 gap-2 mb-4 max-h-96 overflow-y-auto">
+                {viewProof.proofImages?.map((img, idx) => (
+                  <img 
+                    key={idx}
+                    src={img} 
+                    alt={`Proof ${idx + 1}`} 
+                    className="w-full h-40 object-cover rounded-lg border-2 border-gray-100 shadow-sm"
+                  />
+                ))}
+              </div>
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
                 <p className="text-sm text-gray-600 font-bold mb-1">TASK: {viewProof.title}</p>
                 <p className="text-xs text-gray-500">Submitted: {new Date(viewProof.submittedAt).toLocaleString()}</p>

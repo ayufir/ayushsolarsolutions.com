@@ -28,13 +28,13 @@ exports.getMyTasks = async (req, res) => {
 // Employee: Submit Proof (Selfie)
 exports.submitProof = async (req, res) => {
   try {
-    const { taskId, proofImage, location } = req.body;
+    const { taskId, proofImages, location } = req.body;
     const task = await Task.findById(taskId);
 
     if (!task) return res.status(404).json({ message: 'Task not found' });
     if (task.employee.toString() !== req.user.id) return res.status(403).json({ message: 'Unauthorized' });
 
-    task.proofImage = proofImage; // Expecting base64 string
+    task.proofImages = proofImages; // Expecting array of base64 strings
     task.locationAtCompletion = location;
     task.status = 'completed';
     task.submittedAt = Date.now();

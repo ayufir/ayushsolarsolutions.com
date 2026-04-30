@@ -442,6 +442,10 @@ function TaskTab({ token, currentLoc }: { token: string; currentLoc: any }) {
   const [tasks, setTasks] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState('');
+  
+  // State for multiple images during capture
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [tempImages, setTempImages] = useState<string[]>([]);
 
   const fetchTasks = async () => {
     if (!token) return;
@@ -451,15 +455,10 @@ function TaskTab({ token, currentLoc }: { token: string; currentLoc: any }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTasks(res.data);
-      
-      // Get user name from token (optional decode or just stored in storage)
       const userData = await AsyncStorage.getItem('user');
       if (userData) setUserName(JSON.parse(userData).name);
     } catch (err: any) {
-      console.log('Fetch tasks error:', err.response?.status, err.message);
-      if (err.response?.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-      }
+      console.log('Fetch tasks error:', err.message);
     } finally {
       setRefreshing(false);
     }
@@ -467,28 +466,27 @@ function TaskTab({ token, currentLoc }: { token: string; currentLoc: any }) {
 
   useEffect(() => { fetchTasks(); }, [token]);
 
-  const handlePickImage = async (taskId: string) => {
-    // Request permissions
+  const handleCapture = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission denied', 'We need camera access to submit proof.');
+      Alert.alert('Permission denied', 'Need camera access.');
       return;
     }
 
-    // Launch camera
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
+      aspect: [4, 3],
+      quality: 0.4,
       base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets[0].base64) {
-      submitProof(taskId, `data:image/jpeg;base64,${result.assets[0].base64}`);
+      setTempImages([...tempImages, `data:image/jpeg;base64,${result.assets[0].base64}`]);
     }
   };
 
-  const submitProof = async (taskId: string, base64Image: string) => {
+  const submitAllProofs = async () => {
+    if (tempImages.length === 0) return;
     try {
       setRefreshing(true);
       const locData = currentLoc ? {
@@ -497,15 +495,17 @@ function TaskTab({ token, currentLoc }: { token: string; currentLoc: any }) {
       } : { latitude: 0, longitude: 0 };
 
       await axios.post(`${API_URL}/tasks/submit`, {
-        taskId,
-        proofImage: base64Image,
+        taskId: activeTaskId,
+        proofImages: tempImages,
         location: locData
       }, { headers: { Authorization: `Bearer ${token}` } });
       
-      Alert.alert('Success', 'Task proof submitted! Waiting for Admin approval.');
+      Alert.alert('Success', `${tempImages.length} images submitted!`);
+      setTempImages([]);
+      setActiveTaskId(null);
       fetchTasks();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to submit proof');
+      Alert.alert('Error', 'Failed to submit proof');
     } finally {
       setRefreshing(false);
     }
@@ -558,18 +558,63 @@ function TaskTab({ token, currentLoc }: { token: string; currentLoc: any }) {
             <Text style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>{task.description}</Text>
 
             {task.status === 'pending' || task.status === 'rejected' ? (
-              <TouchableOpacity 
-                style={[s.loginBtn, { marginTop: 0, height: 48 }]} 
-                onPress={() => handlePickImage(task._id)}
-              >
-                <Feather name="camera" size={18} color="#0f172a" style={{ marginRight: 8 }} />
-                <Text style={s.loginBtnText}>SUBMIT PROOF</Text>
-              </TouchableOpacity>
+              <View>
+                {activeTaskId === task._id ? (
+                  <View>
+                    {/* Previews */}
+                    <ScrollView horizontal style={{ marginBottom: 12 }}>
+                      {tempImages.map((img, idx) => (
+                        <View key={idx} style={{ marginRight: 8, position: 'relative' }}>
+                          <View style={{ width: 60, height: 60, borderRadius: 8, overflow: 'hidden', borderWeight: 1, borderColor: '#f59e0b' }}>
+                            <Image style={{ width: '100%', height: '100%' }} source={{ uri: img }} />
+                          </View>
+                          <TouchableOpacity 
+                            onPress={() => setTempImages(tempImages.filter((_, i) => i !== idx))}
+                            style={{ position: 'absolute', top: -5, right: -5, backgroundColor: '#ef4444', borderRadius: 10, padding: 2 }}
+                          >
+                            <Feather name="x" size={12} color="white" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      <TouchableOpacity 
+                        onPress={handleCapture}
+                        style={{ width: 60, height: 60, borderRadius: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: '#64748b', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Feather name="plus" size={24} color="#64748b" />
+                      </TouchableOpacity>
+                    </ScrollView>
+
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                       <TouchableOpacity 
+                        style={[s.loginBtn, { flex: 1, marginTop: 0, height: 48, backgroundColor: '#10b981' }]} 
+                        onPress={submitAllProofs}
+                        disabled={tempImages.length === 0}
+                      >
+                        <Text style={s.loginBtnText}>SUBMIT ({tempImages.length})</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[s.loginBtn, { width: 50, marginTop: 0, height: 48, backgroundColor: '#334155' }]} 
+                        onPress={() => {setActiveTaskId(null); setTempImages([]);}}
+                      >
+                        <Feather name="trash-2" size={18} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity 
+                    style={[s.loginBtn, { marginTop: 0, height: 48 }]} 
+                    onPress={() => setActiveTaskId(task._id)}
+                  >
+                    <Feather name="camera" size={18} color="#0f172a" style={{ marginRight: 8 }} />
+                    <Text style={s.loginBtnText}>START PROOF</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', padding: 10, borderRadius: 8 }}>
                 <Feather name="check-circle" size={16} color="#10b981" />
                 <Text style={{ color: '#10b981', marginLeft: 8, fontSize: 12, fontWeight: '600' }}>
-                  Proof submitted on {new Date(task.submittedAt).toLocaleDateString()}
+                  {task.proofImages?.length} images submitted on {new Date(task.submittedAt).toLocaleDateString()}
                 </Text>
               </View>
             )}
@@ -579,6 +624,8 @@ function TaskTab({ token, currentLoc }: { token: string; currentLoc: any }) {
     </ScrollView>
   );
 }
+// Add simple Image component import if not present
+import { Image } from 'react-native';
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function Index() {

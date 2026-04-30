@@ -18,9 +18,7 @@ const taskSchema = new mongoose.Schema({
     enum: ['pending', 'completed', 'approved', 'rejected'],
     default: 'pending'
   },
-  proofImage: {
-    type: String // URL of the uploaded selfie
-  },
+  proofImages: [String], // Array of uploaded selfie URLs/base64 strings
   submittedAt: {
     type: Date
   },
