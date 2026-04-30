@@ -26,3 +26,11 @@ exports.admin = (req, res, next) => {
     res.status(403).json({ message: 'Not authorized as an admin' });
   }
 };
+
+exports.client = (req, res, next) => {
+  if (req.user && req.user.role === 'client') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as a client' });
+  }
+};

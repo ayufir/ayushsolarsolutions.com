@@ -28,12 +28,20 @@ const employeeRoutes = require('./routes/employee');
 const locationRoutes = require('./routes/location');
 const solarRoutes = require('./routes/solar');
 const taskRoutes = require('./routes/task');
+const analyticsRoutes = require('./routes/analytics');
+const inventoryRoutes = require('./routes/inventory');
+const attendanceRoutes = require('./routes/attendance');
+const messageRoutes = require('./routes/messages');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/solars', solarRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/messages', messageRoutes);
 app.get('/api/test-tasks', (req, res) => res.send('Tasks API is alive'));
 
 // Socket.io for Real-time location updates
@@ -48,6 +56,11 @@ io.on('connection', (socket) => {
   socket.on('employee_location_update', (data) => {
     // data contains location details, send to admin room
     io.to('admin_room').emit('receive_location_update', data);
+  });
+
+  socket.on('send_message', (data) => {
+    // Broadcast message to everyone
+    io.emit('receive_message', data);
   });
 
   socket.on('disconnect', () => {

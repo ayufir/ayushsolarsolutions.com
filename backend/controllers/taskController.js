@@ -3,9 +3,10 @@ const Task = require('../models/Task');
 // Admin: Assign a task
 exports.assignTask = async (req, res) => {
   try {
-    const { employeeId, title, description, taskLocation } = req.body;
+    const { employeeId, title, description, taskLocation, solarId } = req.body;
     const task = await Task.create({
       employee: employeeId,
+      solarId,
       title,
       description,
       taskLocation
@@ -60,8 +61,13 @@ exports.getAllTasks = async (req, res) => {
 // Admin: Approve/Reject Task
 exports.reviewTask = async (req, res) => {
   try {
-    const { taskId, status } = req.body; // status: 'approved' or 'rejected'
+    const { taskId, status } = req.body; 
     const task = await Task.findByIdAndUpdate(taskId, { status }, { new: true });
+
+    if (status === 'approved' && task.solarId) {
+      const Solar = require('../models/Solar');
+      await Solar.findByIdAndUpdate(task.solarId, { lastServicedAt: Date.now() });
+    }
     res.json(task);
   } catch (err) {
     res.status(500).json({ message: err.message });
